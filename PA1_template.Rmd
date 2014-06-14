@@ -105,8 +105,6 @@ means <- sapply(dailyActivity, function(x) { mean(x$updated_steps, na.rm=TRUE)})
 medians <- sapply(dailyActivity, function(x) { median(x$updated_steps, na.rm=TRUE)})
 
 dailyStatsAfterPatch <- data.frame(dates=dates, totals=as.vector(totals), means=as.vector(means), medians=as.vector(medians))
-print(dailyStats)
-
 ```
 Histogram of daily total steps after patch
 ```{r}
