@@ -3,18 +3,128 @@
 
 ## Loading and preprocessing the data
 
+```{r loaddata}
+library(ggplot2)
+activity <- read.csv("./activity.csv", header=TRUE, colClasses=c("integer", "Date", "integer"))
+```
 
 
 ## What is mean total number of steps taken per day?
 
+Splitting into daily data
+```{r }
+dailyActivity <- split(activity, factor(activity$date))
+```
 
+Totals, means and medians of the step count on daily basis
+```{r }
+totals <- sapply(dailyActivity, function(x) { sum(x$steps, na.rm=TRUE)})
+
+dates <- names(totals)
+names(totals) <- NULL
+
+means <- sapply(dailyActivity, function(x) { mean(x$steps, na.rm=TRUE)})
+names(means) <- NULL
+
+medians <- sapply(dailyActivity, function(x) { median(x$steps, na.rm=TRUE)})
+names(medians) <- NULL
+
+dailyStats <- data.frame(dates, totals, means, medians)
+print(dailyStats)
+
+```
+Histogram of daily total steps
+```{r}
+g <- ggplot(dailyStats , aes(dates, totals))
+g + geom_bar(stat="identity")
+```
 
 ## What is the average daily activity pattern?
 
+Splitting into 5-minute-time-slot data
+```{r }
+slotActivity <- split(activity, factor(activity$interval))
+```
+
+Average step count on slot basis across all days
+```{r }
+averages <- sapply(slotActivity, function(x) { mean(x$steps, na.rm=TRUE)})
+totals <- sapply(slotActivity, function(x) { sum(x$steps, na.rm=TRUE)})
+
+slotStats <- data.frame(slots=as.numeric(names(averages)), averages=as.vector(averages), totals=as.vector(totals))
+```
+
+Time series plot
+
+```{r}
+qplot(slots, averages, data=slotStats, geom="line", group=1)
+```
+
+Slot containing the maximum steps
+
+```{r}
+maxValue <- max(slotStats$totals)
+slotStats[slotStats$totals == maxValue, ]
+```
 
 
 ## Imputing missing values
 
+Report of total number of missing values
+```{r}
+dataWithNA <- activity[is.na(activity$steps), ]
+nrow(dataWithNA)
+```
 
+Patching NA's with the mean
+```{r}
+for( i in 1:nrow(activity)) {
+    if (is.na(activity[i, "steps"])) {
+        slot <- activity[i, "interval"]
+        averageValue <- slotStats[slotStats$slots == slot, "averages"]
+        activity[i, "updated_steps"] <- averageValue
+    } else {
+        activity[i, "updated_steps"] <- activity[i, "steps"]
+    }
+}
+```
 
-## Are there differences in activity patterns between weekdays and weekends?
+Splitting into daily data (after patching)
+```{r }
+dailyActivity <- split(activity, factor(activity$date))
+```
+
+Totals, means and medians of the step count on daily basis
+```{r }
+totals <- sapply(dailyActivity, function(x) { sum(x$updated_steps, na.rm=TRUE)})
+
+dates <- names(totals)
+
+means <- sapply(dailyActivity, function(x) { mean(x$updated_steps, na.rm=TRUE)})
+
+medians <- sapply(dailyActivity, function(x) { median(x$updated_steps, na.rm=TRUE)})
+
+dailyStatsAfterPatch <- data.frame(dates=dates, totals=as.vector(totals), means=as.vector(means), medians=as.vector(medians))
+print(dailyStats)
+
+```
+Histogram of daily total steps after patch
+```{r}
+g <- ggplot(dailyStatsAfterPatch, aes(dates, totals))
+g + geom_bar(stat="identity")
+```
+## Are there differences in activity patterns between weekdays and weekends? 
+
+```{r}
+activity$weekday <- weekdays(activity$date, abbreviate=TRUE)
+for(i in 1:nrow(activity)) {
+    day <- activity[i, "weekday"]
+    if (day %in% c("Sat", "Sun")) {
+        activity[i, "dayType"] <- "weekend"
+    } else {
+        activity[i, "dayType"] <- "weekday"
+    }
+}
+```
+
+Taking averages across weekdays and weekends
